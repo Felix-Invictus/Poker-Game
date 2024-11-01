@@ -96,7 +96,7 @@ import textwrap
 # how big the stake is for small blind
 small_blind = 5
 # the initial ship size each player possess
-chipset = small_blind * 300
+chipset = small_blind * 400
 # initial chance that a computer player bluffs in first inter-rounds
 bluff_chance = 0.2
 # increase of bluff chance after a computer player decides to bluff
@@ -105,6 +105,8 @@ bluff_chance_increase = 0.1
 bluff_chance_cap = 0.7
 # the chance that a computer player bluffs AFTER the first inter-rounds
 bluff_chance_after = 0.15
+# the chance of calling no matter how big the stake is, after the computer already decides to bluff
+bluff_chance_whatsoever = 0.2
 # the indented space of outplay on screen terminal
 indenture = 40
 
@@ -185,6 +187,7 @@ class Person:
             print(f"""{self.name} 把仅剩的 ¥{self.money}筹码 ALL-IN 了 !""")
             print(indenture * ' ', end='', flush=True)
             self.money = 0
+            self.is_allin = True
         return
 
     def rise(self, amount):
@@ -204,14 +207,15 @@ class Person:
             print(f"""{self.name}把仅剩的 ¥{self.money}筹码 ALL-IN 了 !""")
             print(indenture * ' ', end='', flush=True)
             self.money = 0
+            self.is_allin = True
         return
 
     def decide(self):  ### Algorithm for computer to decide Fold/Call/Rise
         print(f"{players.index(self) + 1}{self.name} 思考中...", end='', flush=True)
-        if sum_player_stakes() < 100:  # in case it's the blind-round, the odds would be too small at the beginning
-            pot = 100
-        elif sum_player_stakes() < 200:
-            pot = 0.5 * sum_player_stakes() + 100
+        if sum_player_stakes() < 20*small_blind:  # in case it's the blind-round, the odds would be too small at the beginning
+            pot = 20*small_blind
+        elif sum_player_stakes() < 40*small_blind:
+            pot = 0.5 * sum_player_stakes() + 20*small_blind
         else:
             pot = sum_player_stakes()
         pot_tenth = 5 * int(pot / 50)
@@ -246,9 +250,26 @@ class Person:
 
         def bluff():
             if is_someone_allin:
-                self.call()
+                if random.random() < bluff_chance_whatsoever:
+                    self.call()
+                else:
+                    if wins > odds or wins > 0.5:
+                        self.call()
+                    else:
+                        self.fold()
             else:
-                self.rise(pot_tenth * random.randint(1, 10))  # how much to bluff...
+                if random.random() < bluff_chance_whatsoever:
+                    self.call()
+                else:
+                    if (stake_ready() - self.stake) <= 50 * small_blind:
+                        self.rise(pot_tenth * random.randint(1, 10))  # how much to bluff...
+                    elif (stake_ready() - self.stake) <= 100 * small_blind:
+                        self.call()
+                    elif (stake_ready() - self.stake) > 100 * small_blind:
+                        if wins <= odds:
+                            self.fold()
+                        else:
+                            self.call()
             return
 
         if (n_bet_round == 1 and random.random() < self.bluff_chance) or (
@@ -452,8 +473,8 @@ def new_game():
     print('')
     slow_print("以下 是 本次 比赛 的 简要 规则:")
     print('')
-    slow_print("每位 选手 开局 均 持有 ¥ 1500 的 筹码。")
-    slow_print("小 盲注 为 ¥ 5，大 盲注 为 ¥ 10。")
+    slow_print(f"每位 选手 开局 均 持有 ¥ {chipset} 的 筹码。")
+    slow_print(f"小 盲注 为 ¥ {small_blind}，大 盲注 为 ¥ {2*small_blind}。")
     print('')
     slow_print("上述 名单 顺序 即 为 比赛 时 各位 选手 的 下注 顺序， 每局 比赛 结束 后 将 往下 顺移 一位。")
     print('')
@@ -575,14 +596,14 @@ def new_round():
             elif i.is_allin:
                 continue
             else:
-                if players.index(i) == 0 and sum_player_stakes() == 0:
+                if sum_player_stakes() == 0:
                     i.stake = 5
                     i.money -= 5
                     i.ready = True
                     print(f"{players.index(i) + 1}", end='', flush=True)
                     print(f"""{i.name} 下小盲注¥{small_blind}...""")
                     print(indenture * ' ', end='', flush=True)
-                elif players.index(i) == 1 and sum_player_stakes() == 5:
+                elif sum_player_stakes() == 5:
                     i.stake = 10
                     i.money -= 10
                     i.ready = True
