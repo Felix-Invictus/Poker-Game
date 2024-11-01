@@ -1,3 +1,4 @@
+中文-德扑游戏
 #This is a Texas Hold'em game. 
 #The game only focus on important inputs and outputs via keyboard and screen, all text information, containing no graphical elements.
 #You play against 5 computer players.
